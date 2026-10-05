@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyFlow - مخطط الموديول</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f5f7fb;color:#172033}
+.app{max-width:1050px;margin:auto;padding:28px 16px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+h1{margin:0;font-size:28px}.muted{color:#697386}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:white;border:1px solid #e3e7ef;border-radius:16px;padding:18px;box-shadow:0 4px 18px rgba(20,30,50,.05)}
+label{display:block;font-size:14px;font-weight:700;margin-bottom:7px}input{width:100%;padding:11px;border:1px solid #ccd3df;border-radius:10px;font-size:15px;background:white}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;background:#2457e6;color:white}
+button.secondary{background:#eef2ff;color:#2457e6}button.danger{background:#fff0f0;color:#c62828}
+.section{margin-top:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat b{font-size:24px;display:block;margin-top:6px}
+.bar{height:12px;background:#e9edf4;border-radius:99px;overflow:hidden;margin-top:10px}.fill{height:100%;background:#2457e6;width:0;transition:.2s}
+.lesson{display:grid;grid-template-columns:1fr 100px 110px 110px auto;gap:8px;align-items:end;padding:12px 0;border-bottom:1px solid #edf0f5}
+.lesson .check{display:flex;align-items:center;gap:7px;padding-bottom:10px}.lesson .check input{width:auto}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.plan{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.day{border:1px solid #e3e7ef;border-radius:12px;padding:12px;background:#fafbfe}
+.notice{padding:12px;border-radius:12px;background:#f0f5ff;margin-top:12px}.empty{padding:20px;text-align:center;color:#697386}
+@media(max-width:800px){.grid,.stats{grid-template-columns:repeat(2,1fr)}.lesson{grid-template-columns:1fr 1fr}.lesson>*{min-width:0}.plan{grid-template-columns:1fr}}
+@media(max-width:520px){.grid,.stats{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <h1>StudyFlow</h1>
+      <div class="muted">مخطط ذكي لمتابعة الموديول وخطة المذاكرة</div>
+    </div>
+    <div class="actions">
+      <button id="demo">بيانات تجريبية</button>
+      <button id="reset" class="secondary">مسح الكل</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>بيانات الموديول</h2>
+    <div class="grid">
+      <div><label>اسم الموديول</label><input id="module" placeholder="مثال: Cardiovascular"></div>
+      <div><label>تاريخ الامتحان</label><input id="exam" type="date"></div>
+      <div><label>إجمالي ساعات المحتوى</label><input id="hours" type="number" min="0" step=".5" placeholder="24"></div>
+      <div><label>ساعات ذاكرتها بالفعل</label><input id="studied" type="number" min="0" step=".5" placeholder="6"></div>
+    </div>
+  </div>
+
+  <div class="section stats">
+    <div class="card stat"><span class="muted">إنجاز المحاضرات</span><b id="sLessons">0%</b></div>
+    <div class="card stat"><span class="muted">إنجاز الساعات</span><b id="sHours">0%</b></div>
+    <div class="card stat"><span class="muted">الساعات المتبقية</span><b id="sRemain">0</b></div>
+    <div class="card stat"><span class="muted">الأيام المتبقية</span><b id="sDays">—</b></div>
+  </div>
+
+  <div class="section card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <div><h2 style="margin:0">التقدم العام</h2><div id="message" class="muted">أضف المحاضرات وبيانات الموديول للبدء.</div></div>
+      <strong id="overall">0%</strong>
+    </div>
+    <div class="bar"><div id="fill" class="fill"></div></div>
+  </div>
+
+  <div class="section card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2>المحاضرات</h2><button id="add">+ إضافة محاضرة</button>
+    </div>
+    <div id="lessons"><div class="empty">لم تضف أي محاضرات بعد.</div></div>
+  </div>
+
+  <div class="section card">
+    <h2>الخطة اليومية</h2>
+    <div id="plan" class="plan"><div class="empty">أدخل تاريخ الامتحان وعدد الساعات لإظهار الخطة.</div></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let lessons=[];
+const key="studyflow_mvp_v1";
+function today(){const d=new Date();d.setHours(0,0,0,0);return d}
+function daysLeft(){const v=$("exam").value;if(!v)return null;const e=new Date(v+"T00:00:00");return Math.max(0,Math.ceil((e-today())/86400000))}
+function save(){localStorage.setItem(key,JSON.stringify({module:$("module").value,exam:$("exam").value,hours:$("hours").value,studied:$("studied").value,lessons}))}
+function load(){try{const x=JSON.parse(localStorage.getItem(key));if(!x)return;["module","exam","hours","studied"].forEach(k=>$(k).value=x[k]||"");lessons=x.lessons||[]}catch(e){}}
+function num(id){return Math.max(0,Number($(id).value)||0)}
+function renderLessons(){
+ const box=$("lessons");box.innerHTML="";
+ if(!lessons.length){box.innerHTML='<div class="empty">لم تضف أي محاضرات بعد.</div>';return}
+ lessons.forEach((l,i)=>{
+  const row=document.createElement("div");row.className="lesson";
+  row.innerHTML=`<div><label>اسم المحاضرة</label><input value="${escapeHtml(l.name)}" data-i="${i}" data-k="name"></div>
+  <div><label>الساعات</label><input type="number" min="0" step=".5" value="${l.hours}" data-i="${i}" data-k="hours"></div>
+  <div><label>الفهم %</label><input type="number" min="0" max="100" value="${l.understanding}" data-i="${i}" data-k="understanding"></div>
+  <div class="check"><input type="checkbox" ${l.done?"checked":""} data-i="${i}" data-k="done"><span>مكتملة</span></div>
+  <button class="danger" data-del="${i}" type="button">حذف</button>`;
+  box.appendChild(row);
+ });
+ box.querySelectorAll("[data-i]").forEach(el=>el.addEventListener("input",e=>{
+  const i=+e.target.dataset.i,k=e.target.dataset.k;
+  lessons[i][k]=k==="done"?e.target.checked:(k==="name"?e.target.value:Math.max(0,Number(e.target.value)||0));
+  if(k==="understanding")lessons[i][k]=Math.min(100,lessons[i][k]);
+  update();
+ }));
+ box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{lessons.splice(+b.dataset.del,1);update()}));
+}
+function escapeHtml(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function update(){
+ const totalLessons=lessons.length, done=lessons.filter(x=>x.done).length;
+ const lessonPct=totalLessons?done/totalLessons*100:0;
+ const hours=num("hours"), studied=Math.min(num("studied"),hours||Infinity);
+ const hourPct=hours?Math.min(100,studied/hours*100):0;
+ const overall=totalLessons&&hours?(lessonPct+hourPct)/2:(totalLessons?lessonPct:hourPct);
+ $("sLessons").textContent=Math.round(lessonPct)+"%";
+ $("sHours").textContent=Math.round(hourPct)+"%";
+ $("sRemain").textContent=Math.max(0,hours-studied).toFixed(1)+" ساعة";
+ const dl=daysLeft();$("sDays").textContent=dl===null?"—":dl+" يوم";
+ $("overall").textContent=Math.round(overall)+"%";$("fill").style.width=Math.min(100,overall)+"%";
+ $("message").textContent=overall>=90?"ممتاز، أنت قريب جدًا من إنهاء الموديول.":overall>=60?"أنت قطعت أكثر من نصف الطريق. ركّز على المتبقي.":"ابدأ بتسجيل المحاضرات والوقت الفعلي للمذاكرة.";
+ renderPlan();renderLessons();save();
+}
+function renderPlan(){
+ const box=$("plan"),hours=num("hours"),studied=Math.min(num("studied"),hours||Infinity),remain=Math.max(0,hours-studied),dl=daysLeft();
+ if(!dl||!remain){box.innerHTML='<div class="empty">أدخل تاريخ الامتحان وإجمالي الساعات والساعات التي ذاكرتها لإظهار الخطة.</div>';return}
+ const per=remain/dl;box.innerHTML="";
+ for(let i=1;i<=Math.min(dl,14);i++){const d=document.createElement("div");d.className="day";d.innerHTML=`<b>اليوم ${i}</b><div style="margin-top:6px">${per.toFixed(1)} ساعة مذاكرة</div><div class="muted" style="font-size:13px;margin-top:4px">حوالي ${Math.max(1,Math.ceil(per/1.5))} جلسة</div>`;box.appendChild(d)}
+ if(dl>14){const d=document.createElement("div");d.className="day";d.innerHTML=`<b>+ ${dl-14} يوم</b><div class="muted" style="margin-top:6px">نفس المعدل اليومي تقريبًا</div>`;box.appendChild(d)}
+}
+$("add").addEventListener("click",()=>{lessons.push({name:"",hours:1,understanding:0,done:false});update()});
+["module","exam","hours","studied"].forEach(id=>$(id).addEventListener("input",update));
+$("reset").addEventListener("click",()=>{if(confirm("مسح كل البيانات؟")){localStorage.removeItem(key);location.reload()}});
+$("demo").addEventListener("click",()=>{$("module").value="Cardiovascular";$("exam").value=new Date(Date.now()+10*86400000).toISOString().slice(0,10);$("hours").value=30;$("studied").value=10;lessons=[{name:"Cardiac cycle",hours:2,understanding:80,done:true},{name:"ECG",hours:2.5,understanding:60,done:true},{name:"Heart failure",hours:2,understanding:40,done:false},{name:"Hypertension",hours:1.5,understanding:0,done:false}];update()});
+load();update();
+</script>
+</body>
+</html>
